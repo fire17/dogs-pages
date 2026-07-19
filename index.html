@@ -5,27 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dog Search</title>
 <style>
-  :root{--purple:#6b21a8;--deep:#4c1d95;--soft:#a855f7;--bg:#faf5ff;}
+  :root{--purple:#6b21a8;--deep:#4c1d95;--soft:#a855f7;--bg:#faf5ff;--line:#e9d5ff}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);font-family:"Segoe UI",Arial,sans-serif;color:var(--purple)}
-  .bar{background:linear-gradient(90deg,var(--deep),var(--soft));color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px}
-  .bar h1{margin:0;font-size:18px;letter-spacing:.5px}
-  .bar small{opacity:.9;font-size:12px}
-  .note{background:#f3e8ff;color:var(--deep);font-size:13px;padding:8px 18px;border-bottom:1px solid #e9d5ff}
-  .frameWrap{position:absolute;top:0;left:0;right:0;bottom:0;top:86px}
-  iframe{width:100%;height:100%;border:0;background:#fff}
+  html,body{margin:0;min-height:100%;background:var(--bg);
+    font-family:"Segoe UI",Arial,sans-serif;color:var(--purple)}
+  .wrap{max-width:640px;margin:0 auto;padding:56px 20px;text-align:center}
+  h1{color:var(--deep);font-size:30px;margin:0 0 8px;letter-spacing:.5px}
+  .sub{color:var(--soft);font-size:15px;margin:0 0 32px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;
+    padding:28px;box-shadow:0 6px 24px rgba(107,33,168,.08)}
+  p{font-size:15px;line-height:1.6}
+  a.btn{display:inline-block;margin-top:8px;background:var(--purple);color:#fff;
+    text-decoration:none;font-size:16px;font-weight:600;padding:14px 30px;border-radius:10px}
+  a.btn:hover{background:var(--deep)}
+  .chip{font-family:ui-monospace,Menlo,monospace;background:#f3e8ff;color:var(--deep);
+    padding:2px 8px;border-radius:6px}
+  .fine{margin-top:26px;font-size:12px;color:var(--soft);line-height:1.6}
 </style>
 </head>
 <body>
-  <div class="bar">
+  <div class="wrap">
     <h1>Dog Search</h1>
-    <small>national dog registry · via dogs.akeyo.io</small>
-  </div>
-  <div class="note">Complete the one-time human-verification inside the panel below, then search by chip number.</div>
-  <div class="frameWrap">
-    <iframe src="https://dogsearch.moag.gov.il/#/pages/pets"
-            referrerpolicy="no-referrer-when-downgrade"
-            allow="clipboard-write"></iframe>
+    <p class="sub">National dog registry lookup</p>
+    <div class="card">
+      <p>Search the registry by chip number. Verification runs on the official
+         registry (one quick human check), where your session is valid.</p>
+      <p><a class="btn" href="https://dogsearch.moag.gov.il/#/pages/pets"
+            rel="noopener">Open Dog Search &rarr;</a></p>
+      <p class="fine">
+        Live results are served by the official AWS-WAF-protected registry API,
+        which only answers same-origin, human-verified requests — so the lookup
+        itself opens on that site. This page is the purple entry point on
+        <span class="chip">dogs.akeyo.io</span>.
+      </p>
+    </div>
+    <p class="fine">Looking for chip <span class="chip">939000007340551</span>?
+       Open the search above and paste it in.</p>
   </div>
 </body>
 </html>
