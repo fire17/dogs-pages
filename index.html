@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de" dir="ltr">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hundesuche</title>
+<title>Dog Search</title>
 <style>
   :root{
     --purple:#6b21a8; --purple-deep:#4c1d95; --purple-soft:#a855f7;
@@ -41,66 +41,66 @@
 </head>
 <body>
 <header>
-  <h1>Hundesuche</h1>
-  <p>Nationale Suche im Hunderegister</p>
+  <h1>Dog Search</h1>
+  <p>National dog registry search</p>
 </header>
 
 <div class="wrap">
   <div class="card">
-    <h2>Suche</h2>
+    <h2>Search</h2>
     <form id="searchForm">
       <div class="grid">
-        <div><label for="chip">Chipnummer</label><input id="chip" name="chip" inputmode="numeric" placeholder="z. B. 972000000000000"></div>
-        <div><label for="city">Stadt</label><input id="city" name="city" placeholder="Stadt"></div>
-        <div><label for="breed">Rasse</label><input id="breed" name="breed" placeholder="Rasse"></div>
-        <div><label for="color">Farbe</label><input id="color" name="color" placeholder="Farbe"></div>
+        <div><label for="chip">Chip number</label><input id="chip" name="chip" inputmode="numeric" placeholder="e.g. 972000000000000"></div>
+        <div><label for="city">City</label><input id="city" name="city" placeholder="City"></div>
+        <div><label for="breed">Breed</label><input id="breed" name="breed" placeholder="Breed"></div>
+        <div><label for="color">Color</label><input id="color" name="color" placeholder="Color"></div>
         <div>
-          <label for="sex">Geschlecht</label>
+          <label for="sex">Sex</label>
           <select id="sex" name="sex">
-            <option value="">Beliebig</option>
-            <option value="M">Männlich</option>
-            <option value="F">Weiblich</option>
+            <option value="">Any</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
           </select>
         </div>
         <div>
           <label for="statusSel">Status</label>
           <select id="statusSel" name="status">
-            <option value="">Alle</option>
-            <option value="lost">Vermisst</option>
-            <option value="found">Gefunden</option>
+            <option value="">All</option>
+            <option value="lost">Lost</option>
+            <option value="found">Found</option>
           </select>
         </div>
       </div>
       <div class="actions">
-        <button type="submit">Suchen</button>
-        <button type="reset" class="ghost">Zurücksetzen</button>
+        <button type="submit">Search</button>
+        <button type="reset" class="ghost">Reset</button>
       </div>
     </form>
     <div id="status"></div>
   </div>
 
   <div class="card">
-    <h2>Ergebnisse</h2>
-    <div id="results"><p style="color:var(--purple-soft);font-size:13px">Noch keine Suche durchgeführt.</p></div>
+    <h2>Results</h2>
+    <div id="results"><p style="color:var(--purple-soft);font-size:13px">No search performed yet.</p></div>
   </div>
 </div>
 
 <footer>
-  <p>Diese Seite spiegelt die Funktion der offiziellen Hundesuche. Alle Anfragen laufen über die realen Endpunkte.</p>
+  <p>This page mirrors the function of the official dog search. All requests use the real endpoints.</p>
 </footer>
 
 <script>
 /* ==========================================================================
- * ENDPOINT-KONFIGURATION  —  hier die echten Endpunkte eintragen
- * Wird aus der Netzwerkaufnahme des echten Portals befuellt (dogsearch.moag.gov.il).
- * Solange leer, zeigt die Suche einen Hinweis statt echter Ergebnisse.
+ * ENDPOINT CONFIG  —  fill in the real endpoints here.
+ * Populated from the network capture of the real portal (dogsearch.moag.gov.il).
+ * While empty, search shows a notice instead of real results.
  * ==========================================================================*/
 const API = {
-  base: "",              // z. B. "https://dogsearch.moag.gov.il"
-  searchPath: "",        // z. B. "/api/pets/search"
-  method: "POST",        // "GET" oder "POST"
+  base: "",              // e.g. "https://dogsearch.moag.gov.il"
+  searchPath: "",        // e.g. "/api/pets/search"
+  method: "POST",        // "GET" or "POST"
   map: { chip:"chip", city:"city", breed:"breed", color:"color", sex:"sex", status:"status" },
-  resultsKey: "",        // z. B. "results" oder "" wenn das Array die Wurzel ist
+  resultsKey: "",        // e.g. "results", or "" if the array is the root
   fields: { name:"name", chip:"chip", breed:"breed", color:"color", city:"city", status:"status" }
 };
 
@@ -119,16 +119,16 @@ function collect(form){
 }
 
 function render(list){
-  if (!list || !list.length){ resultsEl.innerHTML = '<p style="color:var(--purple-soft)">Keine Treffer.</p>'; return; }
+  if (!list || !list.length){ resultsEl.innerHTML = '<p style="color:var(--purple-soft)">No matches.</p>'; return; }
   const f = API.fields;
   resultsEl.innerHTML = list.map(r => `
     <div class="result">
-      <h3>${r[f.name] ?? "Unbenannt"}</h3>
+      <h3>${r[f.name] ?? "Unnamed"}</h3>
       <dl>
-        <dt>Chipnummer</dt><dd>${r[f.chip] ?? "—"}</dd>
-        <dt>Rasse</dt><dd>${r[f.breed] ?? "—"}</dd>
-        <dt>Farbe</dt><dd>${r[f.color] ?? "—"}</dd>
-        <dt>Stadt</dt><dd>${r[f.city] ?? "—"}</dd>
+        <dt>Chip number</dt><dd>${r[f.chip] ?? "—"}</dd>
+        <dt>Breed</dt><dd>${r[f.breed] ?? "—"}</dd>
+        <dt>Color</dt><dd>${r[f.color] ?? "—"}</dd>
+        <dt>City</dt><dd>${r[f.city] ?? "—"}</dd>
         <dt>Status</dt><dd>${r[f.status] ?? "—"}</dd>
       </dl>
     </div>`).join("");
@@ -138,10 +138,10 @@ $("#searchForm").addEventListener("submit", async e => {
   e.preventDefault();
   const params = collect(e.target);
   if (!API.base || !API.searchPath){
-    statusEl.textContent = "Endpunkte noch nicht verbunden — Netzwerkaufnahme ausstehend.";
+    statusEl.textContent = "Endpoints not connected yet — network capture pending.";
     return;
   }
-  statusEl.textContent = "Suche laeuft…";
+  statusEl.textContent = "Searching…";
   resultsEl.innerHTML = "";
   try{
     let url = API.base + API.searchPath, opts = { headers:{ "Accept":"application/json" } };
@@ -157,9 +157,9 @@ $("#searchForm").addEventListener("submit", async e => {
     const data = await res.json();
     const list = API.resultsKey ? data[API.resultsKey] : (Array.isArray(data) ? data : data.results);
     render(list);
-    statusEl.textContent = (list?.length ?? 0) + " Treffer.";
+    statusEl.textContent = (list?.length ?? 0) + " matches.";
   }catch(err){
-    statusEl.textContent = "Fehler bei der Anfrage: " + err.message;
+    statusEl.textContent = "Request error: " + err.message;
   }
 });
 </script>
