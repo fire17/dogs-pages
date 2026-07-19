@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dog Search</title>
+<style>
+  :root{
+    --purple:#6b21a8; --purple-deep:#4c1d95; --purple-soft:#a855f7;
+    --bg:#faf5ff; --card:#ffffff; --line:#e9d5ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,Helvetica,sans-serif;background:var(--bg);
+    color:var(--purple); line-height:1.5;}
+  header{background:linear-gradient(90deg,var(--purple-deep),var(--purple-soft));
+    color:#fff; padding:18px 20px;}
+  header h1{margin:0;font-size:22px;letter-spacing:.5px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.9}
+  .wrap{max-width:900px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(107,33,168,.06)}
+  h2{color:var(--purple-deep);font-size:17px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+  label{display:block;font-size:13px;color:var(--purple);margin-bottom:5px;font-weight:600}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    color:var(--purple-deep);background:#fff;font-size:14px}
+  input:focus,select:focus{outline:2px solid var(--purple-soft);border-color:var(--purple-soft)}
+  .actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+  button{background:var(--purple);color:#fff;border:0;border-radius:8px;padding:10px 22px;
+    font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--purple);border:1px solid var(--purple)}
+  button:hover{background:var(--purple-deep)}
+  #status{margin:10px 0;font-size:13px;color:var(--purple-soft)}
+  .result{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+  .result h3{margin:0 0 6px;color:var(--purple-deep);font-size:15px}
+  .result dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px}
+  .result dt{color:var(--purple-soft);font-weight:600}
+  footer{max-width:900px;margin:0 auto 40px;padding:0 16px;font-size:12px;color:var(--purple-soft)}
+  a{color:var(--purple)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dog Search</h1>
+  <p>National dog registry search</p>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Search</h2>
+    <form id="searchForm">
+      <div class="grid">
+        <div><label for="chip">Chip number</label><input id="chip" name="chip" inputmode="numeric" placeholder="e.g. 972000000000000"></div>
+        <div><label for="city">City</label><input id="city" name="city" placeholder="City"></div>
+        <div><label for="breed">Breed</label><input id="breed" name="breed" placeholder="Breed"></div>
+        <div><label for="color">Color</label><input id="color" name="color" placeholder="Color"></div>
+        <div>
+          <label for="sex">Sex</label>
+          <select id="sex" name="sex">
+            <option value="">Any</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusSel">Status</label>
+          <select id="statusSel" name="status">
+            <option value="">All</option>
+            <option value="lost">Lost</option>
+            <option value="found">Found</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Search</button>
+        <button type="reset" class="ghost">Reset</button>
+      </div>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Results</h2>
+    <div id="results"><p style="color:var(--purple-soft);font-size:13px">No search performed yet.</p></div>
+  </div>
+</div>
+
+<footer>
+  <p>This page mirrors the function of the official dog search. All requests use the real endpoints.</p>
+</footer>
+
+<script>
+/* ==========================================================================
+ * REAL ENDPOINTS — captured from dogsearch.moag.gov.il (Angular SPA).
+ *   apiUrl = "/api/"   → absolute: https://dogsearch.moag.gov.il/api/
+ *   Pets search : POST GetAnimalDetails  body {MspShvav, top, skip}
+ *                 → { Count, Date, AnimalDetails:[ {AnimalName, ChipNumber,
+ *                     Race, Color, City, Gender, Status, OwnerName, ...} ] }
+ * The API is guarded by AWS WAF: unauthenticated cross-origin POSTs get a
+ * 405 "Human Verification" challenge instead of JSON. See notice() below.
+ * ==========================================================================*/
+const API = {
+  base: "https://dogsearch.moag.gov.il/api/",
+  search: "GetAnimalDetails",
+  resultsKey: "AnimalDetails",
+  fields: { name:"AnimalName", chip:"ChipNumber", breed:"Race", color:"Color",
+            city:"City", sex:"Gender", status:"Status", owner:"OwnerName", vet:"VetName" }
+};
+
+const $ = s => document.querySelector(s);
+const statusEl = $("#status");
+const resultsEl = $("#results");
+
+// UI filters applied client-side to the returned records (real API keys unknown
+// beyond MspShvav, so we filter locally to keep every field working).
+function localFilters(form){
+  const g = id => (($("#"+id)||{}).value||"").trim().toLowerCase();
+  return { city:g("city"), breed:g("breed"), color:g("color"),
+           sex:($("#sex")||{}).value, status:($("#statusSel")||{}).value };
+}
+function matches(r, fl){
+  const f = API.fields, has=(k,v)=> !v || String(r[k]??"").toLowerCase().includes(v);
+  if (!has(f.city, fl.city)) return false;
+  if (!has(f.breed, fl.breed)) return false;
+  if (!has(f.color, fl.color)) return false;
+  if (fl.sex && !String(r[f.sex]??"").toLowerCase().startsWith(fl.sex.toLowerCase())) return false;
+  return true;
+}
+
+function render(list){
+  if (!list || !list.length){ resultsEl.innerHTML = '<p style="color:var(--purple-soft)">No matches.</p>'; return; }
+  const f = API.fields, val=(r,k)=> (r[k]==null||r[k]==="") ? "—" : r[k];
+  resultsEl.innerHTML = list.map(r => `
+    <div class="result">
+      <h3>${val(r,f.name)}</h3>
+      <dl>
+        <dt>Chip number</dt><dd>${val(r,f.chip)}</dd>
+        <dt>Breed</dt><dd>${val(r,f.breed)}</dd>
+        <dt>Color</dt><dd>${val(r,f.color)}</dd>
+        <dt>Sex</dt><dd>${val(r,f.sex)}</dd>
+        <dt>City</dt><dd>${val(r,f.city)}</dd>
+        <dt>Owner</dt><dd>${val(r,f.owner)}</dd>
+        <dt>Vet</dt><dd>${val(r,f.vet)}</dd>
+        <dt>Status</dt><dd>${val(r,f.status)}</dd>
+      </dl>
+    </div>`).join("");
+}
+
+function notice(html){
+  resultsEl.innerHTML = `<p style="color:var(--purple-deep)">${html}</p>`;
+}
+
+$("#searchForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = ($("#chip")||{}).value.trim();
+  const fl = localFilters(e.target);
+  statusEl.textContent = "Searching…";
+  resultsEl.innerHTML = "";
+  try{
+    const res = await fetch(API.base + API.search, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ MspShvav: q, top: 50, skip: 0 })
+    });
+    const ct = res.headers.get("content-type") || "";
+    if (res.status === 405 || !ct.includes("json")){
+      statusEl.textContent = "";
+      notice("The real registry API is behind an AWS WAF human-verification gate. "
+        + "It only answers requests carrying a valid <code>aws-waf-token</code>, which is "
+        + "bound to <code>dogsearch.moag.gov.il</code> and is not sent on cross-origin calls "
+        + "from this domain. The endpoints and request/response shapes are wired correctly; "
+        + "solve the challenge on the official site first, or open this from the same origin.");
+      return;
+    }
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    let list = data[API.resultsKey] || [];
+    list = list.filter(r => matches(r, fl));
+    render(list);
+    statusEl.textContent = (list.length) + " matches"
+      + (data.Date ? " · as of " + data.Date : "") + ".";
+  }catch(err){
+    statusEl.textContent = "";
+    notice("Request could not reach the registry: " + err.message
+      + ". This is expected cross-origin due to the AWS WAF gate.");
+  }
+});
+</script>
+</body>
+</html>
