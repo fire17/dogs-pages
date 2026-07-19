@@ -1,4 +1,167 @@
 <!doctype html>
+<html lang="de" dir="ltr">
+<head>
 <meta charset="utf-8">
-<title>dogs</title>
-<h1>new private dogs repo</h1>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hundesuche</title>
+<style>
+  :root{
+    --purple:#6b21a8; --purple-deep:#4c1d95; --purple-soft:#a855f7;
+    --bg:#faf5ff; --card:#ffffff; --line:#e9d5ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,Helvetica,sans-serif;background:var(--bg);
+    color:var(--purple); line-height:1.5;}
+  header{background:linear-gradient(90deg,var(--purple-deep),var(--purple-soft));
+    color:#fff; padding:18px 20px;}
+  header h1{margin:0;font-size:22px;letter-spacing:.5px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.9}
+  .wrap{max-width:900px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(107,33,168,.06)}
+  h2{color:var(--purple-deep);font-size:17px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+  label{display:block;font-size:13px;color:var(--purple);margin-bottom:5px;font-weight:600}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    color:var(--purple-deep);background:#fff;font-size:14px}
+  input:focus,select:focus{outline:2px solid var(--purple-soft);border-color:var(--purple-soft)}
+  .actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+  button{background:var(--purple);color:#fff;border:0;border-radius:8px;padding:10px 22px;
+    font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--purple);border:1px solid var(--purple)}
+  button:hover{background:var(--purple-deep)}
+  #status{margin:10px 0;font-size:13px;color:var(--purple-soft)}
+  .result{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+  .result h3{margin:0 0 6px;color:var(--purple-deep);font-size:15px}
+  .result dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px}
+  .result dt{color:var(--purple-soft);font-weight:600}
+  footer{max-width:900px;margin:0 auto 40px;padding:0 16px;font-size:12px;color:var(--purple-soft)}
+  a{color:var(--purple)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Hundesuche</h1>
+  <p>Nationale Suche im Hunderegister</p>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Suche</h2>
+    <form id="searchForm">
+      <div class="grid">
+        <div><label for="chip">Chipnummer</label><input id="chip" name="chip" inputmode="numeric" placeholder="z. B. 972000000000000"></div>
+        <div><label for="city">Stadt</label><input id="city" name="city" placeholder="Stadt"></div>
+        <div><label for="breed">Rasse</label><input id="breed" name="breed" placeholder="Rasse"></div>
+        <div><label for="color">Farbe</label><input id="color" name="color" placeholder="Farbe"></div>
+        <div>
+          <label for="sex">Geschlecht</label>
+          <select id="sex" name="sex">
+            <option value="">Beliebig</option>
+            <option value="M">Männlich</option>
+            <option value="F">Weiblich</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusSel">Status</label>
+          <select id="statusSel" name="status">
+            <option value="">Alle</option>
+            <option value="lost">Vermisst</option>
+            <option value="found">Gefunden</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Suchen</button>
+        <button type="reset" class="ghost">Zurücksetzen</button>
+      </div>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnisse</h2>
+    <div id="results"><p style="color:var(--purple-soft);font-size:13px">Noch keine Suche durchgeführt.</p></div>
+  </div>
+</div>
+
+<footer>
+  <p>Diese Seite spiegelt die Funktion der offiziellen Hundesuche. Alle Anfragen laufen über die realen Endpunkte.</p>
+</footer>
+
+<script>
+/* ==========================================================================
+ * ENDPOINT-KONFIGURATION  —  hier die echten Endpunkte eintragen
+ * Wird aus der Netzwerkaufnahme des echten Portals befuellt (dogsearch.moag.gov.il).
+ * Solange leer, zeigt die Suche einen Hinweis statt echter Ergebnisse.
+ * ==========================================================================*/
+const API = {
+  base: "",              // z. B. "https://dogsearch.moag.gov.il"
+  searchPath: "",        // z. B. "/api/pets/search"
+  method: "POST",        // "GET" oder "POST"
+  map: { chip:"chip", city:"city", breed:"breed", color:"color", sex:"sex", status:"status" },
+  resultsKey: "",        // z. B. "results" oder "" wenn das Array die Wurzel ist
+  fields: { name:"name", chip:"chip", breed:"breed", color:"color", city:"city", status:"status" }
+};
+
+const $ = s => document.querySelector(s);
+const statusEl = $("#status");
+const resultsEl = $("#results");
+
+function collect(form){
+  const p = {};
+  for (const [ui, real] of Object.entries(API.map)){
+    const el = form.elements[ui] || $("#"+(ui==="status"?"statusSel":ui));
+    const v = el && el.value ? el.value.trim() : "";
+    if (v) p[real] = v;
+  }
+  return p;
+}
+
+function render(list){
+  if (!list || !list.length){ resultsEl.innerHTML = '<p style="color:var(--purple-soft)">Keine Treffer.</p>'; return; }
+  const f = API.fields;
+  resultsEl.innerHTML = list.map(r => `
+    <div class="result">
+      <h3>${r[f.name] ?? "Unbenannt"}</h3>
+      <dl>
+        <dt>Chipnummer</dt><dd>${r[f.chip] ?? "—"}</dd>
+        <dt>Rasse</dt><dd>${r[f.breed] ?? "—"}</dd>
+        <dt>Farbe</dt><dd>${r[f.color] ?? "—"}</dd>
+        <dt>Stadt</dt><dd>${r[f.city] ?? "—"}</dd>
+        <dt>Status</dt><dd>${r[f.status] ?? "—"}</dd>
+      </dl>
+    </div>`).join("");
+}
+
+$("#searchForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const params = collect(e.target);
+  if (!API.base || !API.searchPath){
+    statusEl.textContent = "Endpunkte noch nicht verbunden — Netzwerkaufnahme ausstehend.";
+    return;
+  }
+  statusEl.textContent = "Suche laeuft…";
+  resultsEl.innerHTML = "";
+  try{
+    let url = API.base + API.searchPath, opts = { headers:{ "Accept":"application/json" } };
+    if (API.method === "GET"){
+      url += "?" + new URLSearchParams(params).toString();
+    } else {
+      opts.method = "POST";
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(params);
+    }
+    const res = await fetch(url, opts);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const list = API.resultsKey ? data[API.resultsKey] : (Array.isArray(data) ? data : data.results);
+    render(list);
+    statusEl.textContent = (list?.length ?? 0) + " Treffer.";
+  }catch(err){
+    statusEl.textContent = "Fehler bei der Anfrage: " + err.message;
+  }
+});
+</script>
+</body>
+</html>
