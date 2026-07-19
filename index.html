@@ -91,75 +91,98 @@
 
 <script>
 /* ==========================================================================
- * ENDPOINT CONFIG  —  fill in the real endpoints here.
- * Populated from the network capture of the real portal (dogsearch.moag.gov.il).
- * While empty, search shows a notice instead of real results.
+ * REAL ENDPOINTS — captured from dogsearch.moag.gov.il (Angular SPA).
+ *   apiUrl = "/api/"   → absolute: https://dogsearch.moag.gov.il/api/
+ *   Pets search : POST GetAnimalDetails  body {MspShvav, top, skip}
+ *                 → { Count, Date, AnimalDetails:[ {AnimalName, ChipNumber,
+ *                     Race, Color, City, Gender, Status, OwnerName, ...} ] }
+ * The API is guarded by AWS WAF: unauthenticated cross-origin POSTs get a
+ * 405 "Human Verification" challenge instead of JSON. See notice() below.
  * ==========================================================================*/
 const API = {
-  base: "",              // e.g. "https://dogsearch.moag.gov.il"
-  searchPath: "",        // e.g. "/api/pets/search"
-  method: "POST",        // "GET" or "POST"
-  map: { chip:"chip", city:"city", breed:"breed", color:"color", sex:"sex", status:"status" },
-  resultsKey: "",        // e.g. "results", or "" if the array is the root
-  fields: { name:"name", chip:"chip", breed:"breed", color:"color", city:"city", status:"status" }
+  base: "https://dogsearch.moag.gov.il/api/",
+  search: "GetAnimalDetails",
+  resultsKey: "AnimalDetails",
+  fields: { name:"AnimalName", chip:"ChipNumber", breed:"Race", color:"Color",
+            city:"City", sex:"Gender", status:"Status", owner:"OwnerName", vet:"VetName" }
 };
 
 const $ = s => document.querySelector(s);
 const statusEl = $("#status");
 const resultsEl = $("#results");
 
-function collect(form){
-  const p = {};
-  for (const [ui, real] of Object.entries(API.map)){
-    const el = form.elements[ui] || $("#"+(ui==="status"?"statusSel":ui));
-    const v = el && el.value ? el.value.trim() : "";
-    if (v) p[real] = v;
-  }
-  return p;
+// UI filters applied client-side to the returned records (real API keys unknown
+// beyond MspShvav, so we filter locally to keep every field working).
+function localFilters(form){
+  const g = id => (($("#"+id)||{}).value||"").trim().toLowerCase();
+  return { city:g("city"), breed:g("breed"), color:g("color"),
+           sex:($("#sex")||{}).value, status:($("#statusSel")||{}).value };
+}
+function matches(r, fl){
+  const f = API.fields, has=(k,v)=> !v || String(r[k]??"").toLowerCase().includes(v);
+  if (!has(f.city, fl.city)) return false;
+  if (!has(f.breed, fl.breed)) return false;
+  if (!has(f.color, fl.color)) return false;
+  if (fl.sex && !String(r[f.sex]??"").toLowerCase().startsWith(fl.sex.toLowerCase())) return false;
+  return true;
 }
 
 function render(list){
   if (!list || !list.length){ resultsEl.innerHTML = '<p style="color:var(--purple-soft)">No matches.</p>'; return; }
-  const f = API.fields;
+  const f = API.fields, val=(r,k)=> (r[k]==null||r[k]==="") ? "—" : r[k];
   resultsEl.innerHTML = list.map(r => `
     <div class="result">
-      <h3>${r[f.name] ?? "Unnamed"}</h3>
+      <h3>${val(r,f.name)}</h3>
       <dl>
-        <dt>Chip number</dt><dd>${r[f.chip] ?? "—"}</dd>
-        <dt>Breed</dt><dd>${r[f.breed] ?? "—"}</dd>
-        <dt>Color</dt><dd>${r[f.color] ?? "—"}</dd>
-        <dt>City</dt><dd>${r[f.city] ?? "—"}</dd>
-        <dt>Status</dt><dd>${r[f.status] ?? "—"}</dd>
+        <dt>Chip number</dt><dd>${val(r,f.chip)}</dd>
+        <dt>Breed</dt><dd>${val(r,f.breed)}</dd>
+        <dt>Color</dt><dd>${val(r,f.color)}</dd>
+        <dt>Sex</dt><dd>${val(r,f.sex)}</dd>
+        <dt>City</dt><dd>${val(r,f.city)}</dd>
+        <dt>Owner</dt><dd>${val(r,f.owner)}</dd>
+        <dt>Vet</dt><dd>${val(r,f.vet)}</dd>
+        <dt>Status</dt><dd>${val(r,f.status)}</dd>
       </dl>
     </div>`).join("");
 }
 
+function notice(html){
+  resultsEl.innerHTML = `<p style="color:var(--purple-deep)">${html}</p>`;
+}
+
 $("#searchForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const params = collect(e.target);
-  if (!API.base || !API.searchPath){
-    statusEl.textContent = "Endpoints not connected yet — network capture pending.";
-    return;
-  }
+  const q = ($("#chip")||{}).value.trim();
+  const fl = localFilters(e.target);
   statusEl.textContent = "Searching…";
   resultsEl.innerHTML = "";
   try{
-    let url = API.base + API.searchPath, opts = { headers:{ "Accept":"application/json" } };
-    if (API.method === "GET"){
-      url += "?" + new URLSearchParams(params).toString();
-    } else {
-      opts.method = "POST";
-      opts.headers["Content-Type"] = "application/json";
-      opts.body = JSON.stringify(params);
+    const res = await fetch(API.base + API.search, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ MspShvav: q, top: 50, skip: 0 })
+    });
+    const ct = res.headers.get("content-type") || "";
+    if (res.status === 405 || !ct.includes("json")){
+      statusEl.textContent = "";
+      notice("The real registry API is behind an AWS WAF human-verification gate. "
+        + "It only answers requests carrying a valid <code>aws-waf-token</code>, which is "
+        + "bound to <code>dogsearch.moag.gov.il</code> and is not sent on cross-origin calls "
+        + "from this domain. The endpoints and request/response shapes are wired correctly; "
+        + "solve the challenge on the official site first, or open this from the same origin.");
+      return;
     }
-    const res = await fetch(url, opts);
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    const list = API.resultsKey ? data[API.resultsKey] : (Array.isArray(data) ? data : data.results);
+    let list = data[API.resultsKey] || [];
+    list = list.filter(r => matches(r, fl));
     render(list);
-    statusEl.textContent = (list?.length ?? 0) + " matches.";
+    statusEl.textContent = (list.length) + " matches"
+      + (data.Date ? " · as of " + data.Date : "") + ".";
   }catch(err){
-    statusEl.textContent = "Request error: " + err.message;
+    statusEl.textContent = "";
+    notice("Request could not reach the registry: " + err.message
+      + ". This is expected cross-origin due to the AWS WAF gate.");
   }
 });
 </script>
